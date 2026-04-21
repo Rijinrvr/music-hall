@@ -45,6 +45,7 @@ export default function Signup() {
                 type="text" 
                 className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#ff7e5f]"
                 onChange={handleChange}
+                suppressHydrationWarning
               />
             </div>
             <div>
@@ -54,6 +55,7 @@ export default function Signup() {
                 type="text" 
                 className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#ff7e5f]"
                 onChange={handleChange}
+                suppressHydrationWarning
               />
             </div>
           </div>
@@ -65,6 +67,7 @@ export default function Signup() {
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#ff7e5f]"
               onChange={handleChange}
               required
+              suppressHydrationWarning
             />
           </div>
           <div>
@@ -75,6 +78,7 @@ export default function Signup() {
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#ff7e5f]"
               onChange={handleChange}
               required
+              suppressHydrationWarning
             />
           </div>
           <div>
@@ -85,12 +89,14 @@ export default function Signup() {
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#ff7e5f]"
               onChange={handleChange}
               required
+              suppressHydrationWarning
             />
           </div>
           
           <button 
             type="submit" 
             className="w-full py-3 mt-4 rounded-xl font-bold text-white bg-gradient-to-r from-[#ff7e5f] to-[#feb47b] hover:opacity-90 transition-opacity"
+            suppressHydrationWarning
           >
             Sign Up
           </button>

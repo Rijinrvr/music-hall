@@ -134,7 +134,7 @@ class RoomConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def update_room_state(self, track_id, is_playing, timestamp_ms):
         try:
-            room = Room.objects.get(id=self.room_id)
+            room = Room.objects.get(id=int(self.room_id))
             room.current_track_id = track_id
             room.is_playing = is_playing
             room.timestamp_ms = timestamp_ms

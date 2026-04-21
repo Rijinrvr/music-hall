@@ -16,18 +16,34 @@ export default function Home() {
       if (res.data.room_id) {
         router.push(`/rooms/${res.data.room_id}`);
       }
-    } catch (err) {
-      console.error(err);
-      alert("Please login first or check the server");
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        router.push('/login');
+      } else {
+        console.error(err);
+        alert("Could not find a room. Please try again.");
+      }
     }
   };
+
   useEffect(() => {
+    // Auth guard — redirect to login if not authenticated
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) {
+      router.replace('/login');
+      return;
+    }
+
     async function fetchRooms() {
       try {
         const res = await api.get('rooms/');
         setRooms(res.data);
-      } catch (err) {
-        console.error("Failed to fetch rooms", err);
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
+          router.replace('/login');
+        } else {
+          console.error("Failed to fetch rooms", err);
+        }
       }
     }
     fetchRooms();

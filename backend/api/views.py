@@ -63,18 +63,18 @@ class PlaylistViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def create(self, request, *args, **kwargs):
-        # Check if we're adding a Spotify track via metadata
-        spotify_id = request.data.get('track_id')
-        if spotify_id and not request.data.get('track'):
-            # It's a Spotify track and 'track' (FK) isn't provided
+        # Check if we're adding a free/itunes track via metadata (no 'track' FK provided)
+        track_id_str = request.data.get('track_id')
+        if track_id_str and not request.data.get('track'):
+            # Upsert a Track row keyed by spotify_id (we reuse the field for any external id)
             track, created = Track.objects.get_or_create(
-                spotify_id=spotify_id,
+                spotify_id=str(track_id_str),
                 defaults={
                     'title': request.data.get('title', 'Unknown Track'),
                     'artist': request.data.get('artist', 'Unknown Artist'),
                     'duration': request.data.get('duration', 0),
                     'album_art': request.data.get('album_art'),
-                    'added_by': request.user if request.user.is_authenticated else None
+                    'added_by': request.user if request.user.is_authenticated else None,
                 }
             )
             data = request.data.copy()
@@ -83,23 +83,29 @@ class PlaylistViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
-            
-            # Broadcast queue update
+
+            # Broadcast queue update to all room members
             if room_id:
-                from asgiref.sync import async_to_sync
-                from channels.layers import get_channel_layer
                 channel_layer = get_channel_layer()
                 async_to_sync(channel_layer.group_send)(
                     f'room_{room_id}',
-                    {
-                        'type': 'queue_update_broadcast'
-                    }
+                    {'type': 'queue_update_broadcast'}
                 )
 
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-            
-        return super().create(request, *args, **kwargs)
+
+        # Default path (track FK already provided)
+        response = super().create(request, *args, **kwargs)
+        # Still broadcast queue update
+        room_id = request.data.get('room')
+        if room_id:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'room_{room_id}',
+                {'type': 'queue_update_broadcast'}
+            )
+        return response
 
     @action(detail=True, methods=['post'])
     def move_to_top(self, request, pk=None):

@@ -38,6 +38,7 @@ export default function Login() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              suppressHydrationWarning
             />
           </div>
           <div>
@@ -48,12 +49,14 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              suppressHydrationWarning
             />
           </div>
           
           <button 
             type="submit" 
             className="w-full py-3 mt-4 rounded-xl font-bold text-white bg-gradient-to-r from-[#ff7e5f] to-[#feb47b] hover:opacity-90 transition-opacity"
+            suppressHydrationWarning
           >
             Sign In
           </button>

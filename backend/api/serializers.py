@@ -27,15 +27,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user = CustomUser.objects.create_user(**validated_data)
         return user
 
-class RoomSerializer(serializers.ModelSerializer):
-    admin_detail = CustomUserSerializer(source='admin', read_only=True)
-
-    class Meta:
-        model = Room
-        fields = ('id', 'name', 'theme', 'description', 'admin', 'admin_detail', 
-                  'current_track_id', 'is_playing', 'timestamp_ms', 'last_sync_time', 'created_at')
-        read_only_fields = ('admin',)
-
+# MembershipSerializer must be declared BEFORE RoomSerializer which nests it
 class MembershipSerializer(serializers.ModelSerializer):
     user_detail = CustomUserSerializer(source='user', read_only=True)
 
@@ -43,6 +35,17 @@ class MembershipSerializer(serializers.ModelSerializer):
         model = Membership
         fields = ('id', 'user', 'user_detail', 'room', 'role', 'status', 'joined_at')
         read_only_fields = ('user',)
+
+class RoomSerializer(serializers.ModelSerializer):
+    admin_detail = CustomUserSerializer(source='admin', read_only=True)
+    memberships = MembershipSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Room
+        fields = ('id', 'name', 'theme', 'description', 'admin', 'admin_detail',
+                  'memberships', 'current_track_id', 'is_playing', 'timestamp_ms',
+                  'last_sync_time', 'created_at')
+        read_only_fields = ('admin',)
 
 class TrackSerializer(serializers.ModelSerializer):
     class Meta:

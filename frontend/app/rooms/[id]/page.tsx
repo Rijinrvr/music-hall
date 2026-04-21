@@ -163,6 +163,13 @@ export default function Room() {
     let socketRef: WebSocket;
 
     async function init() {
+      // Auth guard — redirect to login if no token
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      if (!token) {
+        router.replace('/login');
+        return;
+      }
+
       try {
         const [userRes, roomRes] = await Promise.all([
           api.get('users/me/'),
@@ -218,7 +225,16 @@ export default function Room() {
           }
         };
 
-      } catch (err) { console.error('Init failed', err); }
+      } catch (err: any) {
+        // Token expired or invalid — redirect to login
+        if (err?.response?.status === 401) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          router.replace('/login');
+        } else {
+          console.error('Init failed', err);
+        }
+      }
     }
 
     init();
@@ -482,12 +498,6 @@ export default function Room() {
         </div>
       </div>
 
-      <style jsx global>{`
-        .glass-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 20px; }
-      `}</style>
     </div>
   );
 }
