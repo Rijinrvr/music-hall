@@ -2,31 +2,41 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Music, LogIn, LogOut, User, Disc } from 'lucide-react';
+import { Music, User, Disc, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import api from '@/lib/api';
 
 export default function Navbar() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [guestName, setGuestName] = useState<string | null>(null);
+  const [guestUsername, setGuestUsername] = useState<string | null>(null);
+
+  const readGuest = () => {
+    setGuestName(localStorage.getItem('guest_name'));
+    setGuestUsername(localStorage.getItem('guest_username'));
+  };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const auth = !!localStorage.getItem('access_token');
-      setIsAuthenticated(auth);
-      if (auth) {
-        api.get('users/me/').then(res => setUser(res.data)).catch(() => setIsAuthenticated(false));
-      }
-    }
+    if (typeof window === 'undefined') return;
+    readGuest();
+    // Listen for same-tab login (fired by onboarding page)
+    window.addEventListener('guest-login', readGuest);
+    // Listen for cross-tab storage changes
+    window.addEventListener('storage', readGuest);
+    return () => {
+      window.removeEventListener('guest-login', readGuest);
+      window.removeEventListener('storage', readGuest);
+    };
   }, []);
 
-  const handleLogout = () => {
+  const handleLeave = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    setIsAuthenticated(false);
-    setUser(null);
-    router.push('/login');
+    localStorage.removeItem('guest_name');
+    localStorage.removeItem('guest_username');
+    localStorage.removeItem('guest_id');
+    setGuestName(null);
+    setGuestUsername(null);
+    router.push('/onboarding');
   };
 
   return (
@@ -38,35 +48,42 @@ export default function Navbar() {
         <span className="text-xl font-bold tracking-wider text-gradient">Music Hall</span>
       </Link>
 
-      <div className="flex items-center gap-4">
-        {isAuthenticated ? (
+      <div className="flex items-center gap-3">
+        {guestName ? (
           <>
-            {user?.is_spotify_connected && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1DB954]/10 text-[#1DB954] border border-[#1DB954]/20 hidden sm:flex">
-                <Disc size={14} className="animate-spin-slow" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Spotify Active</span>
+            {/* User chip */}
+            <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-white/10">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#ff7e5f] to-[#feb47b] flex items-center justify-center text-[10px] font-black text-white">
+                {guestName.charAt(0).toUpperCase()}
               </div>
-            )}
-            <Link href="/profile" className="flex items-center gap-2 px-4 py-2 rounded-full glass-card hover:bg-white/10 transition-colors">
-              <User size={18} />
-              <span className="text-sm font-medium">Profile</span>
-            </Link>
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+              <span className="text-sm font-medium text-white">{guestName}</span>
+              {guestUsername && (
+                <span className="text-[10px] text-gray-500 font-mono">@{guestUsername}</span>
+              )}
+            </div>
+
+            {/* Leave / switch user */}
+            <button
+              id="navbar-leave-btn"
+              onClick={handleLeave}
+              title="Switch user"
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:border-red-400/30 transition-colors text-sm"
             >
-              <LogOut size={18} />
-              <span className="text-sm font-medium">Logout</span>
+              <LogOut size={15} />
+              <span className="hidden sm:inline text-xs font-medium">Leave</span>
             </button>
           </>
         ) : (
-          <Link href="/login" className="flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-[#ff7e5f] to-[#feb47b] text-white hover:opacity-90 transition-opacity font-medium shadow-lg">
-            <LogIn size={18} />
-            <span>Sign In</span>
+          <Link
+            href="/onboarding"
+            id="navbar-enter-btn"
+            className="flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-[#ff7e5f] to-[#feb47b] text-white hover:opacity-90 transition-opacity font-medium shadow-lg"
+          >
+            <User size={16} />
+            <span>Enter</span>
           </Link>
         )}
       </div>
-
     </nav>
   );
 }

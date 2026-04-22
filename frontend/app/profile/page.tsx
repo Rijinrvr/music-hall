@@ -13,15 +13,19 @@ export default function Profile() {
 
   useEffect(() => {
     async function fetchProfileData() {
+      const token = localStorage.getItem('access_token');
+      if (!token) { router.replace('/onboarding'); return; }
+
+      // Use guest data from localStorage as base profile
+      const guestName = localStorage.getItem('guest_name') || '';
+      const guestUsername = localStorage.getItem('guest_username') || '';
+      setProfile({ username: guestUsername, first_name: guestName, email: '', music_preferences: [] });
+
       try {
-        const userRes = await api.get('users/me/');
-        setProfile(userRes.data);
-        
         const historyRes = await api.get('history/');
         setHistory(historyRes.data);
       } catch (err) {
         console.error(err);
-        router.push('/login');
       } finally {
         setLoading(false);
       }

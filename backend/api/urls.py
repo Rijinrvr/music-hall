@@ -5,7 +5,8 @@ from .views import (UserViewSet, RoomViewSet, MembershipViewSet, TrackViewSet,
                     PlaylistViewSet, ChatMessageViewSet, InvitationViewSet, 
                     ListeningHistoryViewSet, UploadedMusicViewSet,
                     SpotifySearchView, RandomRoomView, SpotifyTransferView, SpotifyPlayView,
-                    SpotifyMoodTracksView, FreeMusicSearchView, FreeMusicPopularView)
+                    SpotifyMoodTracksView, FreeMusicSearchView, FreeMusicPopularView,
+                    GuestSessionView)
 from .spotify_auth import SpotifyLoginView, SpotifyCallbackView, SpotifyTokenRefreshView
 
 router = DefaultRouter()
@@ -23,6 +24,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/guest-session/', GuestSessionView.as_view(), name='guest-session'),
     path('spotify/search/', SpotifySearchView.as_view(), name='spotify-search'),
     path('random-room/', RandomRoomView.as_view(), name='random-room'),
     path('spotify/login/', SpotifyLoginView.as_view(), name='spotify-login'),

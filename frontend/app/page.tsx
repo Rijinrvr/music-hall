@@ -18,7 +18,7 @@ export default function Home() {
       }
     } catch (err: any) {
       if (err?.response?.status === 401) {
-        router.push('/login');
+        router.push('/onboarding');
       } else {
         console.error(err);
         alert("Could not find a room. Please try again.");
@@ -27,10 +27,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Auth guard — redirect to login if not authenticated
+    // Auth guard — redirect to onboarding if not authenticated
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
     if (!token) {
-      router.replace('/login');
+      router.replace('/onboarding');
       return;
     }
 
@@ -40,7 +40,7 @@ export default function Home() {
         setRooms(res.data);
       } catch (err: any) {
         if (err?.response?.status === 401) {
-          router.replace('/login');
+          router.replace('/onboarding');
         } else {
           console.error("Failed to fetch rooms", err);
         }

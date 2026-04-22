@@ -14,6 +14,49 @@ from .serializers import (CustomUserSerializer, UserRegistrationSerializer, Room
 from .spotify import SpotifyService
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
+class GuestSessionView(APIView):
+    """Passwordless guest session — create or retrieve user by username, return JWT."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        name = request.data.get('name', '').strip()
+        if not username:
+            return Response({'error': 'Username is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not name:
+            return Response({'error': 'Name is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Sanitize username — only alphanumeric and underscores
+        import re
+        username = re.sub(r'[^\w]', '_', username)[:30]
+
+        user, created = CustomUser.objects.get_or_create(
+            username=username,
+            defaults={
+                'first_name': name.split()[0] if name else name,
+                'last_name': ' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
+                'is_active': True,
+            }
+        )
+        # Update name if user already exists
+        if not created and name:
+            user.first_name = name.split()[0]
+            user.last_name = ' '.join(name.split()[1:]) if len(name.split()) > 1 else ''
+            user.save(update_fields=['first_name', 'last_name'])
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'name': name or user.get_full_name() or user.username,
+            }
+        }, status=status.HTTP_200_OK)
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all()
     
@@ -35,7 +78,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class RoomViewSet(viewsets.ModelViewSet):
     queryset = Room.objects.all()
     serializer_class = RoomSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
 
     def perform_create(self, serializer):
         room = serializer.save(admin=self.request.user)
@@ -44,7 +87,7 @@ class RoomViewSet(viewsets.ModelViewSet):
 class MembershipViewSet(viewsets.ModelViewSet):
     queryset = Membership.objects.all()
     serializer_class = MembershipSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -52,7 +95,7 @@ class MembershipViewSet(viewsets.ModelViewSet):
 class TrackViewSet(viewsets.ModelViewSet):
     queryset = Track.objects.all()
     serializer_class = TrackSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
 
     def perform_create(self, serializer):
         serializer.save(added_by=self.request.user)
@@ -60,7 +103,7 @@ class TrackViewSet(viewsets.ModelViewSet):
 class PlaylistViewSet(viewsets.ModelViewSet):
     queryset = Playlist.objects.all()
     serializer_class = PlaylistSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
         # Check if we're adding a free/itunes track via metadata (no 'track' FK provided)
@@ -131,7 +174,7 @@ class PlaylistViewSet(viewsets.ModelViewSet):
 class ChatMessageViewSet(viewsets.ModelViewSet):
     queryset = ChatMessage.objects.all()
     serializer_class = ChatMessageSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -245,33 +288,38 @@ class SpotifyMoodTracksView(APIView):
         return Response(results)
 
 class RandomRoomView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         rooms = list(Room.objects.all())
-        if not rooms:
-            room = Room.objects.create(
-                name="Global Lounge",
-                theme="PARTY",
-                description="Auto-generated Random Music Hall",
-                admin=request.user
-            )
-            Membership.objects.create(user=request.user, room=room, role='ADMIN', status='APPROVED')
+        if request.user and request.user.is_authenticated:
+            if not rooms:
+                room = Room.objects.create(
+                    name="Global Lounge",
+                    theme="PARTY",
+                    description="Auto-generated Random Music Hall",
+                    admin=request.user
+                )
+                Membership.objects.create(user=request.user, room=room, role='ADMIN', status='APPROVED')
+            else:
+                room = random.choice(rooms)
+                membership, created = Membership.objects.get_or_create(
+                    user=request.user, room=room,
+                    defaults={'role': 'MEMBER', 'status': 'APPROVED'}
+                )
+                if not created and membership.status != 'APPROVED':
+                    membership.status = 'APPROVED'
+                    membership.save()
         else:
+            if not rooms:
+                return Response({'error': 'No rooms available'}, status=404)
             room = random.choice(rooms)
-            membership, created = Membership.objects.get_or_create(
-                user=request.user, room=room, 
-                defaults={'role': 'MEMBER', 'status': 'APPROVED'}
-            )
-            if not created and membership.status != 'APPROVED':
-                membership.status = 'APPROVED'
-                membership.save()
         
         return Response({'room_id': room.id})
 
 
 class FreeMusicSearchView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         query = request.query_params.get('q', '')
@@ -305,7 +353,7 @@ class FreeMusicSearchView(APIView):
 
 
 class FreeMusicPopularView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     MOOD_MAP = {
         'PARTY': 'dance pop hits',

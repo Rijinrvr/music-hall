@@ -163,21 +163,23 @@ export default function Room() {
     let socketRef: WebSocket;
 
     async function init() {
-      // Auth guard — redirect to login if no token
+      // Auth guard — redirect to onboarding if no token
       const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
       if (!token) {
-        router.replace('/login');
+        router.replace('/onboarding');
         return;
       }
 
+      // Load guest user data from localStorage (no extra API call needed)
+      const localName = localStorage.getItem('guest_name') || 'Guest';
+      const localUsername = localStorage.getItem('guest_username') || 'guest';
+      const localId = parseInt(localStorage.getItem('guest_id') || '0');
+      setCurrentUser({ id: localId, username: localUsername, first_name: localName });
+
       try {
-        const [userRes, roomRes] = await Promise.all([
-          api.get('users/me/'),
-          api.get(`rooms/${id}/`),
-        ]);
-        setCurrentUser(userRes.data);
+        const roomRes = await api.get(`rooms/${id}/`);
         setRoom(roomRes.data);
-        isAdminRef.current = userRes.data.id === roomRes.data.admin;
+        isAdminRef.current = localId === roomRes.data.admin;
 
         // Load mood tracks
         const mood = roomRes.data.theme || 'HAPPY';
@@ -226,11 +228,11 @@ export default function Room() {
         };
 
       } catch (err: any) {
-        // Token expired or invalid — redirect to login
+        // Token expired or invalid — redirect to onboarding
         if (err?.response?.status === 401) {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          router.replace('/login');
+          router.replace('/onboarding');
         } else {
           console.error('Init failed', err);
         }
