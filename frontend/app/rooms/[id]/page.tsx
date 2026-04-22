@@ -36,6 +36,7 @@ export default function Room() {
   const lastSyncRef = useRef<number>(0);
   const isAdminRef = useRef<boolean>(false);
   const sentMessageIds = useRef<Set<string>>(new Set());
+  const wsRef = useRef<WebSocket | null>(null);  // persistent socket ref — survives async delays
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -160,7 +161,13 @@ export default function Room() {
   };
 
   useEffect(() => {
-    let socketRef: WebSocket;
+    let cancelled = false;
+
+    // Close any existing socket immediately (handles React StrictMode double-invoke)
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
 
     async function init() {
       // Auth guard — redirect to onboarding if no token
@@ -191,11 +198,15 @@ export default function Room() {
 
         await fetchQueue();
 
-        // WebSocket
-        socketRef = new WebSocket(`ws://localhost:8000/ws/room/${id}/`);
-        setWs(socketRef);
+        // Guard: effect was cleaned up while awaiting — don't open a zombie socket
+        if (cancelled) return;
 
-        socketRef.onmessage = (event) => {
+        // WebSocket — store in ref so cleanup can always close it
+        const socket = new WebSocket(`ws://localhost:8000/ws/room/${id}/`);
+        wsRef.current = socket;
+        setWs(socket);
+
+        socket.onmessage = (event) => {
           const data = JSON.parse(event.data);
           if (data.type === 'chat_message') {
             // Skip messages we already added optimistically
@@ -243,7 +254,11 @@ export default function Room() {
     const queueInterval = setInterval(fetchQueue, 15000);
 
     return () => {
-      socketRef?.close();
+      cancelled = true;
+      // Close via ref — works even if socket was created after cleanup triggered
+      wsRef.current?.close();
+      wsRef.current = null;
+      setWs(null);
       clearInterval(queueInterval);
     };
   }, [id]);
